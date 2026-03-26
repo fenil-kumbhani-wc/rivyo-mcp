@@ -8,6 +8,7 @@
     "server:build:watch": "tsc-watch",
     "server:dev": "tsx ./src/server.ts",
     "server:inspect": "set DANGEROUSLY_OMIT_AUTH=true && npx @modelcontextprotocol/inspector -- tsx ./src/server.ts",
+    "inspector:start": "set DANGEROUSLY_OMIT_AUTH=true && npx @modelcontextprotocol/inspector",
     "server:http": "tsx ./src/server-http.ts"
   },
   "keywords": [],
