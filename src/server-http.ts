@@ -5,10 +5,6 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { Request, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { createRivyoMcpServer } from "./createRivyoMcpServer.js";
-import {
-  getMcpOAuthClientCredentials,
-  mcpOAuthBasicAuthMiddleware,
-} from "./mcpOAuthClient.js";
 
 type Session = {
   transport: StreamableHTTPServerTransport;
@@ -37,12 +33,6 @@ const app =
         ],
       })
     : createMcpExpressApp({ host });
-
-const mcpInsecureNoAuth = process.env.MCP_HTTP_INSECURE_NO_AUTH === "true";
-const mcpOAuthCreds = getMcpOAuthClientCredentials();
-if (mcpOAuthCreds && !mcpInsecureNoAuth) {
-  app.use("/mcp", mcpOAuthBasicAuthMiddleware(mcpOAuthCreds));
-}
 
 app.get("/health", (_req, res) => {
   res.status(200).type("text/plain").send("ok");
@@ -124,11 +114,6 @@ app.delete("/mcp", async (req: Request, res: Response) => {
 const httpServer = app.listen(port, host, () => {
   console.log(`Rivyo MCP (Streamable HTTP) at http://${host}:${port}/mcp`);
   console.log(`Health check: http://${host}:${port}/health`);
-  if (mcpInsecureNoAuth) {
-    console.log("MCP /mcp: auth disabled (MCP_HTTP_INSECURE_NO_AUTH=true)");
-  } else if (mcpOAuthCreds) {
-    console.log("MCP /mcp: Basic auth enabled (OAuth client id + secret)");
-  }
 });
 
 httpServer.on("error", err => {
