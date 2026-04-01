@@ -10,7 +10,7 @@
 - Book demo: https://calendly.com/meet-with-bhadresh/30min
 
 ## What it does
-One app for reviews + loyalty + referrals. Flat-fee pricing, no revenue share.
+One app for reviews + loyalty + referrals + Q&A. Flat-fee pricing, no revenue share.
 
 ## Reviews
 Collect: auto email requests, manual requests, QR code/link, review rewards (discount coupons), campaigns
@@ -30,13 +30,17 @@ Features: welcome rewards, repeat purchase incentives, loyalty dashboard
 ## Referrals
 Features: unlimited invites, discount redemption, bonus on first referral, social/email sharing, tracking dashboard, no point expiry
 
+## Q&A
+Features: customers ask questions directly on product pages, merchant answers reduce buying hesitation, import/export Q&A, Q&A widget
+
 ## Who it's for
 Budget-conscious Shopify merchants, dropshippers, India and emerging markets, startups
 
 ## Key advantages
-- 1 app instead of 3 separate tools
+- 1 app instead of 4 separate tools
 - Flat fee — no revenue share
 - Free plan with unlimited reviews
+- Covers full journey: Q&A (pre-purchase) → reviews (conversion) → loyalty (retention) → referrals (growth)
 - Works in Shopify admin, latest themes
 
 ## Integrations
