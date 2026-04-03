@@ -1,24 +1,14 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
-import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { Request, Response } from "express";
-import { randomUUID } from "node:crypto";
 import { createRivyoMcpServer } from "./createRivyoMcpServer.js";
-
-type Session = {
-  transport: StreamableHTTPServerTransport;
-  server: McpServer;
-};
-
-const sessions = new Map<string, Session>();
 
 const host = process.env.MCP_HTTP_HOST ?? "0.0.0.0";
 const port = Number(process.env.MCP_HTTP_PORT ?? process.env.PORT ?? 3333);
 
 const extraHosts = (process.env.MCP_ALLOWED_HOSTS ?? "")
   .split(",")
-  .map(h => h.trim())
+  .map((h) => h.trim())
   .filter(Boolean);
 
 const app =
@@ -34,47 +24,32 @@ const app =
       })
     : createMcpExpressApp({ host });
 
+// ── Health check ────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.status(200).type("text/plain").send("ok");
 });
 
+// ── Stateless MCP handler (required for Claude.ai) ──────────────
+//
+// Claude.ai does NOT send an initialize handshake before tool calls,
+// so session-based routing always returns 400 "Invalid or missing session ID".
+// Stateless mode (sessionIdGenerator: undefined) creates a fresh server
+// instance per request — no session state needed.
+//
 app.post("/mcp", async (req: Request, res: Response) => {
-  const sessionIdHeader = req.headers["mcp-session-id"] as string | undefined;
-
   try {
-    const existing = sessionIdHeader ? sessions.get(sessionIdHeader) : undefined;
-    if (existing) {
-      await existing.transport.handleRequest(req, res, req.body);
-      return;
-    }
+    const server = createRivyoMcpServer();
 
-    if (!sessionIdHeader && isInitializeRequest(req.body)) {
-      const server = createRivyoMcpServer();
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-        onsessioninitialized: sid => {
-          sessions.set(sid, { transport, server });
-        },
-      });
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // ← stateless: fixes the 400 error
+    });
 
-      transport.onclose = async () => {
-        const sid = transport.sessionId;
-        if (sid) sessions.delete(sid);
-        await server.close().catch(() => {});
-      };
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
 
-      await server.connect(transport);
-      await transport.handleRequest(req, res, req.body);
-      return;
-    }
-
-    res.status(400).json({
-      jsonrpc: "2.0",
-      error: {
-        code: -32000,
-        message: "Bad Request: No valid session ID provided",
-      },
-      id: null,
+    // Clean up after response is sent
+    res.on("finish", () => {
+      server.close().catch(() => {});
     });
   } catch (err) {
     console.error("MCP POST error:", err);
@@ -91,32 +66,16 @@ app.post("/mcp", async (req: Request, res: Response) => {
   }
 });
 
-app.get("/mcp", async (req: Request, res: Response) => {
-  const sessionIdHeader = req.headers["mcp-session-id"] as string | undefined;
-  if (!sessionIdHeader || !sessions.has(sessionIdHeader)) {
-    res.status(400).send("Invalid or missing session ID");
-    return;
-  }
-  const { transport } = sessions.get(sessionIdHeader)!;
-  await transport.handleRequest(req, res);
-});
-
-app.delete("/mcp", async (req: Request, res: Response) => {
-  const sessionIdHeader = req.headers["mcp-session-id"] as string | undefined;
-  if (!sessionIdHeader || !sessions.has(sessionIdHeader)) {
-    res.status(400).send("Invalid or missing session ID");
-    return;
-  }
-  const { transport } = sessions.get(sessionIdHeader)!;
-  await transport.handleRequest(req, res);
-});
-
+// ── Start ────────────────────────────────────────────────────────
 const httpServer = app.listen(port, host, () => {
-  console.log(`Rivyo MCP (Streamable HTTP) at http://${host}:${port}/mcp`);
-  console.log(`Health check: http://${host}:${port}/health`);
+  console.log(`✅ Rivyo MCP running at http://${host}:${port}/mcp`);
+  console.log(`❤️  Health check:   http://${host}:${port}/health`);
+  if (extraHosts.length > 0) {
+    console.log(`🌐 Allowed hosts:  ${extraHosts.join(", ")}`);
+  }
 });
 
-httpServer.on("error", err => {
-  console.error("Failed to start:", err);
+httpServer.on("error", (err) => {
+  console.error("Failed to start server:", err);
   process.exit(1);
 });
