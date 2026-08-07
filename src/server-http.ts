@@ -41,7 +41,10 @@ app.post("/mcp", async (req: Request, res: Response) => {
     const server = createRivyoMcpServer();
 
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined, // ← stateless: fixes the 400 error
+      sessionIdGenerator: undefined,
+      // enableJsonResponse bypasses the strict Accept header check
+      // that causes 406 errors from Claude.ai and curl/Postman.
+      enableJsonResponse: true,
     });
 
     await server.connect(transport);
